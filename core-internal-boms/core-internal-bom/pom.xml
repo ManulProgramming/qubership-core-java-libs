@@ -28,7 +28,7 @@
         <!-- Logging -->
         <slf4j.version>2.0.18</slf4j.version>
         <logback.version>1.5.34</logback.version>
-        <log4j.version>2.26.0</log4j.version>
+        <log4j.version>2.26.1</log4j.version>
 
         <!-- Build / annotation processing -->
         <lombok.version>1.18.46</lombok.version>
@@ -42,7 +42,7 @@
 
         <!-- HTTP clients -->
         <okhttp3.version>4.12.0</okhttp3.version>
-        <okio.version>3.17.0</okio.version>
+        <okio.version>3.18.1</okio.version>
 
         <!-- JSON -->
         <gson.version>2.13.2</gson.version>
@@ -59,10 +59,10 @@
         <!-- Apache Commons -->
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <commons-io.version>2.21.0</commons-io.version>
-        <commons-collections4.version>4.5.0</commons-collections4.version>
+        <commons-collections4.version>4.6.0</commons-collections4.version>
 
         <!-- HTTP clients (Apache) -->
-        <apache.httpclient5.version>5.5.2</apache.httpclient5.version>
+        <apache.httpclient5.version>5.6.3</apache.httpclient5.version>
 
         <!-- Other compile/runtime -->
         <guava.version>33.5.0-jre</guava.version>
@@ -73,19 +73,19 @@
         <awaitility.version>4.3.0</awaitility.version>
 
         <!-- Messaging -->
-        <rabbitmq.version>5.28.0</rabbitmq.version>
+        <rabbitmq.version>5.30.0</rabbitmq.version>
         <rabbitmq-mock.version>1.2.0</rabbitmq-mock.version>
 
         <!-- Test -->
         <junit-bom.version>6.0.3</junit-bom.version>
-        <mockito.version>5.21.0</mockito.version>
+        <mockito.version>5.23.0</mockito.version>
         <assertj.version>3.27.7</assertj.version>
         <testcontainers.version>2.0.5</testcontainers.version>
         <system-stubs.version>2.1.8</system-stubs.version>
         <junit-pioneer.version>2.3.0</junit-pioneer.version>
         <h2.version>2.4.240</h2.version>
         <logcaptor.version>2.12.6</logcaptor.version>
-        <mockserver.version>7.5.0</mockserver.version>
+        <mockserver.version>7.6.0</mockserver.version>
         <mongo-java-server.version>1.47.0</mongo-java-server.version>
         <docker-java.version>3.7.1</docker-java.version>
     </properties>
