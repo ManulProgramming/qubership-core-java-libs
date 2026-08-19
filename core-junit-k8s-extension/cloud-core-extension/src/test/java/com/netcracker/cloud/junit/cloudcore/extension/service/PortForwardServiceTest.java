@@ -371,6 +371,44 @@ public class PortForwardServiceTest {
         }
     }
 
+    @Test
+    void testPortForward_LOCAL() throws Exception {
+        String host = "test-service";
+        try (MockedStatic<LocalHostAddressGenerator> localHostAddressGeneratorMockedStatic =
+                     Mockito.mockStatic(LocalHostAddressGenerator.class)) {
+
+            KubernetesClient kubernetesClient = mock(KubernetesClient.class);
+
+            LocalPortForward localPortForward8080 = mock(LocalPortForward.class);
+            LocalPortForward localPortForward8181 = mock(LocalPortForward.class);
+
+            Map<Endpoint, LocalPortForward> cache = new HashMap<>();
+            PortForwardService portForwardService = new PortForwardService(kubernetesClient, cache, false, false, false);
+
+            NetSocketAddress netSocketAddress1_attempt1 = portForwardService.portForward(ServicePortForwardParams.builder(SERVICE_NAME, 8080).build());
+            assertNotNull(netSocketAddress1_attempt1);
+
+            NetSocketAddress netSocketAddress1_attempt2 = portForwardService.portForward(ServicePortForwardParams.builder(SERVICE_NAME, 8080).build());
+            assertNotNull(netSocketAddress1_attempt2);
+            assertEquals(netSocketAddress1_attempt1, netSocketAddress1_attempt2);
+
+            NetSocketAddress netSocketAddress2 = portForwardService.portForward(ServicePortForwardParams.builder(SERVICE_NAME, 8181).build());
+            assertNotNull(netSocketAddress2);
+            assertNotEquals(netSocketAddress1_attempt1, netSocketAddress2);
+
+            portForwardService.closePortForward(new Endpoint(host, 8080));
+            assertEquals(0, cache.size());
+            verify(localPortForward8080, times(0)).close();
+            verify(localPortForward8181, times(0)).close();
+
+            localHostAddressGeneratorMockedStatic.verify(() -> LocalHostAddressGenerator.cleanup(any(),any()), times(0));
+
+            portForwardService.closePortForwards();
+            assertEquals(0, cache.size());
+            verify(localPortForward8181, times(0)).close();
+        }
+    }
+
     private interface ServiceTestMixedOperation extends MixedOperation<Service, ServiceList, ServiceResource<Service>> {
     }
 

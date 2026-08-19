@@ -41,11 +41,11 @@ public class PortForwardService {
     }
 
     public synchronized <T> T portForward(BasePortForwardParams<T> params) {
-        String namespace = Optional.ofNullable(params.getNamespace()).orElseGet(kubernetesClient::getNamespace);
-        String cloud = kubernetesClient.getMasterUrl().getHost();
         String name = params.getName();
         int targetPort = params.getPort();
         if (localDevelopment) {
+            String namespace = Optional.ofNullable(params.getNamespace()).orElseGet(kubernetesClient::getNamespace);
+            String cloud = kubernetesClient.getMasterUrl().getHost();
             int localPort = useFreeLocalPorts ? 0 : targetPort;
             // i.e. my-svc.my-namespace.svc.cluster-domain.example
             String host = fqdn ? String.format("%s.svc.%s", params.host(namespace), cloud) : params.host(namespace);

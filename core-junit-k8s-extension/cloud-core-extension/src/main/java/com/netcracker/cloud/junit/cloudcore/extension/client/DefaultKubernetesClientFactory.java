@@ -9,6 +9,9 @@ import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -21,6 +24,8 @@ import static com.netcracker.cloud.junit.cloudcore.extension.provider.OrderedSer
 public class DefaultKubernetesClientFactory implements AutoCloseable, KubernetesClientFactory {
 
     public static final String PORTFORWARD_FQDN_ENABLED_PROP = "portforward.fqdn.enabled";
+    public static final String LOCAL_DEVELOPMENT = "config.local.development";
+    public static final String NAMESPACE_SECRET_PATH = "config.namespace.secret.path";
 
     private final Config config;
 
@@ -40,6 +45,7 @@ public class DefaultKubernetesClientFactory implements AutoCloseable, Kubernetes
 
     public KubernetesClient getKubernetesClient(String context, String namespace) {
         return clientsMap.computeIfAbsent(new CloudAndNamespace(context, namespace), cloudAndNamespace -> {
+
             String cloud = cloudAndNamespace.getCloud();
             NamedContext namedContext = config.getContexts().stream()
                     .filter(c -> Objects.equals(c.getName(), cloud)).findFirst()
@@ -51,12 +57,27 @@ public class DefaultKubernetesClientFactory implements AutoCloseable, Kubernetes
             } else {
                 config = Config.autoConfigure(namedContext.getName());
             }
+
+            ConfigBuilder configBuilder;
+            if (Boolean.parseBoolean(System.getProperty(LOCAL_DEVELOPMENT,"true"))) {
+                configBuilder = new ConfigBuilder(config).withNamespace(cloudAndNamespace.getNamespace());
+            }else {
+                String ns;
+                try {
+                    ns = Files.readString(Path.of(
+                            System.getProperty(NAMESPACE_SECRET_PATH,"/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+                    )).trim();
+                    configBuilder = new ConfigBuilder().withNamespace(ns);
+                } catch (IOException e) {
+                    configBuilder = new ConfigBuilder();
+                }
+            }
+
             List<Fabric8ConfigBuilderAdapter> fabric8ConfigBuilderAdapters =
                     OrderedServiceLoader.loadAll(Fabric8ConfigBuilderAdapter.class, ASC);
             if (fabric8ConfigBuilderAdapters.isEmpty()) {
                 throw new IllegalStateException("No Fabric8ConfigBuilderAdapter found");
             }
-            ConfigBuilder configBuilder = new ConfigBuilder(config).withNamespace(cloudAndNamespace.getNamespace());
             for (Fabric8ConfigBuilderAdapter adapter : fabric8ConfigBuilderAdapters) {
                 configBuilder = adapter.adapt(configBuilder);
             }
