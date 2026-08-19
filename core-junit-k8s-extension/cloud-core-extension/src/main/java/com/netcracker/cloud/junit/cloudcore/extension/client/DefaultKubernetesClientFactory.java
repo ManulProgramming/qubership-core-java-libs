@@ -24,7 +24,7 @@ import static com.netcracker.cloud.junit.cloudcore.extension.provider.OrderedSer
 public class DefaultKubernetesClientFactory implements AutoCloseable, KubernetesClientFactory {
 
     public static final String PORTFORWARD_FQDN_ENABLED_PROP = "portforward.fqdn.enabled";
-    public static final String LOCAL_DEVELOPMENT = "config.local.development";
+    public static final String LOCAL_DEVELOPMENT = "LOCAL_DEVELOPMENT";
     public static final String NAMESPACE_SECRET_PATH = "config.namespace.secret.path";
 
     private final Config config;
@@ -59,7 +59,7 @@ public class DefaultKubernetesClientFactory implements AutoCloseable, Kubernetes
             }
 
             ConfigBuilder configBuilder;
-            if (Boolean.parseBoolean(System.getProperty(LOCAL_DEVELOPMENT,"true"))) {
+            if (!Objects.equals(System.getenv(LOCAL_DEVELOPMENT), "false")) {
                 configBuilder = new ConfigBuilder(config).withNamespace(cloudAndNamespace.getNamespace());
             }else {
                 String ns;

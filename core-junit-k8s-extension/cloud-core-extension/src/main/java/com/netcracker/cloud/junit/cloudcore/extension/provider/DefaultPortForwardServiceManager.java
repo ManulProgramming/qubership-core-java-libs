@@ -21,7 +21,7 @@ public class DefaultPortForwardServiceManager implements PortForwardServiceManag
     protected static Map<PortForwardConfig, PortForwardService> portForwardServiceMap = new ConcurrentHashMap<>();
     public final static String PORTFORWARD_FQDN_ENABLED_PROP = "portforward.fqdn.hosts.enabled";
     public final static String USE_FREE_LOCAL_PORTS_PROP = "portforward.use.free.local.ports";
-    public final static String LOCAL_DEVELOPMENT = "config.local.development";
+    public final static String LOCAL_DEVELOPMENT = "LOCAL_DEVELOPMENT";
 
     @Override
     public PortForwardService getPortForwardService(PortForwardConfig config) {
@@ -31,7 +31,7 @@ public class DefaultPortForwardServiceManager implements PortForwardServiceManag
             KubernetesClient kubernetesClient = kubernetesClientFactory.getKubernetesClient(c.getCloud(), c.getNamespace());
             boolean fqdnFromProp = Boolean.parseBoolean(System.getProperty(PORTFORWARD_FQDN_ENABLED_PROP, "false"));
             boolean useFreeLocalPorts = Boolean.parseBoolean(System.getProperty(USE_FREE_LOCAL_PORTS_PROP, "false"));
-            boolean localDevelopment = Boolean.parseBoolean(System.getProperty(LOCAL_DEVELOPMENT,"true"));
+            boolean localDevelopment = !Objects.equals(System.getenv(LOCAL_DEVELOPMENT), "false");
             Pattern cloudPropPattern = Pattern.compile("^clouds\\.(?<name>[^.]+)\\.name$");
             Set<String> clouds = System.getProperties().keySet().stream()
                     .map(o -> cloudPropPattern.matcher(o.toString()))
