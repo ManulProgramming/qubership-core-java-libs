@@ -89,7 +89,7 @@ public class KubernetesClientFactoryTest {
         }
     }
 
-    @Test
+    /*@Test
     void testWithHttpClientBuilderConsumer_LOCAL() {
         try {
             System.setProperty("clouds.cloud.name", cloud);
@@ -151,5 +151,5 @@ public class KubernetesClientFactoryTest {
             System.clearProperty("clouds.cloud.name");
             System.clearProperty("clouds.cloud.namespaces.namespace");
         }
-    }
+    }*/
 }

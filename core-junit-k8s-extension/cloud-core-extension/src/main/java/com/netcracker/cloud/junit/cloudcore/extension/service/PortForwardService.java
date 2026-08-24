@@ -25,64 +25,68 @@ public class PortForwardService {
     protected boolean fqdn;
     @Getter
     protected boolean useFreeLocalPorts;
-    protected boolean localDevelopment;
+    protected boolean inK8s;
 
-    public PortForwardService(KubernetesClient kubernetesClient, boolean fqdn, boolean useFreeLocalPorts, boolean localDevelopment) {
-        this(kubernetesClient, new ConcurrentHashMap<>(), fqdn, useFreeLocalPorts, localDevelopment);
+    public PortForwardService(KubernetesClient kubernetesClient, boolean fqdn, boolean useFreeLocalPorts, boolean inK8s) {
+        this(kubernetesClient, new ConcurrentHashMap<>(), fqdn, useFreeLocalPorts, inK8s);
     }
 
     public PortForwardService(KubernetesClient kubernetesClient, Map<Endpoint, LocalPortForward> cache,
-                              boolean fqdn, boolean useFreeLocalPorts, boolean localDevelopment) {
+                              boolean fqdn, boolean useFreeLocalPorts, boolean inK8s) {
         this.kubernetesClient = kubernetesClient;
         this.cache = cache;
         this.fqdn = fqdn;
         this.useFreeLocalPorts = useFreeLocalPorts;
-        this.localDevelopment = localDevelopment;
+        this.inK8s = inK8s;
+    }
+
+    private synchronized <T> T direct(BasePortForwardParams<T> params, String name, int targetPort){
+        return params.supply(new NetSocketAddress(name, targetPort));
     }
 
     public synchronized <T> T portForward(BasePortForwardParams<T> params) {
         String name = params.getName();
         int targetPort = params.getPort();
-        if (localDevelopment) {
-            String namespace = Optional.ofNullable(params.getNamespace()).orElseGet(kubernetesClient::getNamespace);
-            String cloud = kubernetesClient.getMasterUrl().getHost();
-            int localPort = useFreeLocalPorts ? 0 : targetPort;
-            // i.e. my-svc.my-namespace.svc.cluster-domain.example
-            String host = fqdn ? String.format("%s.svc.%s", params.host(namespace), cloud) : params.host(namespace);
-            Endpoint endpoint = new Endpoint(host, targetPort);
-            LocalPortForward portForward = cache.get(endpoint);
-            if (portForward != null) {
-                log.debug("Port forward for endpoint '{}:{}' already opened", host, targetPort);
-            } else {
-                InetAddress inetAddress;
-                do {
-                    inetAddress = LocalHostAddressGenerator.getOrNext(host);
-                    try {
-                        if (params instanceof PodPortForwardParams) {
-                            portForward = kubernetesClient.pods().inNamespace(namespace).withName(name)
-                                    .portForward(targetPort, inetAddress, localPort);
-                        } else if (params instanceof ServicePortForwardParams || params instanceof UrlPortForwardParams) {
-                            portForward = kubernetesClient.services().inNamespace(namespace).withName(name)
-                                    .portForward(targetPort, inetAddress, localPort);
-                        } else {
-                            throw new IllegalArgumentException("Unsupported port forward params type: " + params.getClass().getName());
-                        }
-                    } catch (Exception e) {
-                        if (!(e.getCause() instanceof BindException)) {
-                            throw e;
-                        }
-                    }
-                } while (portForward == null);
-                LocalHostAddressGenerator.put(host, inetAddress);
-                cache.put(endpoint, portForward);
-                log.info("Created port forward {}:{} for endpoint {}:{}", host, portForward.getLocalPort(), host, targetPort);
-                if (!ping(portForward.getLocalAddress(), Duration.ofSeconds(5))) { // todo check if that is working
-                    log.warn("Port forward ping for endpoint {}:{} failed", host, targetPort);
-                }
-            }
-            return params.supply(new NetSocketAddress(host, portForward.getLocalPort()));
+        if (inK8s){
+            return direct(params, name, targetPort);
         }
-        return params.supply(new NetSocketAddress(name, targetPort));
+        String namespace = Optional.ofNullable(params.getNamespace()).orElseGet(kubernetesClient::getNamespace);
+        String cloud = kubernetesClient.getMasterUrl().getHost();
+        int localPort = useFreeLocalPorts ? 0 : targetPort;
+        // i.e. my-svc.my-namespace.svc.cluster-domain.example
+        String host = fqdn ? String.format("%s.svc.%s", params.host(namespace), cloud) : params.host(namespace);
+        Endpoint endpoint = new Endpoint(host, targetPort);
+        LocalPortForward portForward = cache.get(endpoint);
+        if (portForward != null) {
+            log.debug("Port forward for endpoint '{}:{}' already opened", host, targetPort);
+        } else {
+            InetAddress inetAddress;
+            do {
+                inetAddress = LocalHostAddressGenerator.getOrNext(host);
+                try {
+                    if (params instanceof PodPortForwardParams) {
+                        portForward = kubernetesClient.pods().inNamespace(namespace).withName(name)
+                                .portForward(targetPort, inetAddress, localPort);
+                    } else if (params instanceof ServicePortForwardParams || params instanceof UrlPortForwardParams) {
+                        portForward = kubernetesClient.services().inNamespace(namespace).withName(name)
+                                .portForward(targetPort, inetAddress, localPort);
+                    } else {
+                        throw new IllegalArgumentException("Unsupported port forward params type: " + params.getClass().getName());
+                    }
+                } catch (Exception e) {
+                    if (!(e.getCause() instanceof BindException)) {
+                        throw e;
+                    }
+                }
+            } while (portForward == null);
+            LocalHostAddressGenerator.put(host, inetAddress);
+            cache.put(endpoint, portForward);
+            log.info("Created port forward {}:{} for endpoint {}:{}", host, portForward.getLocalPort(), host, targetPort);
+            if (!ping(portForward.getLocalAddress(), Duration.ofSeconds(5))) { // todo check if that is working
+                log.warn("Port forward ping for endpoint {}:{} failed", host, targetPort);
+            }
+        }
+        return params.supply(new NetSocketAddress(host, portForward.getLocalPort()));
     }
 
     public void closePortForwards() {
@@ -100,6 +104,7 @@ public class PortForwardService {
                 log.info("Closed port forward for endpoint: {}", endpoint);
             }
         } catch (Exception e) {
+            System.out.println(e);
             log.warn("Error while closing portForwarder, e: {} - {}", e.getClass().getSimpleName(), e.getMessage() != null ? e.getMessage() : "");
         }
     }
