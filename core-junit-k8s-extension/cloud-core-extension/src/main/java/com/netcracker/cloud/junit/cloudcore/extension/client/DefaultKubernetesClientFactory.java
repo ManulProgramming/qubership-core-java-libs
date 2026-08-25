@@ -9,9 +9,6 @@ import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -24,9 +21,7 @@ import static com.netcracker.cloud.junit.cloudcore.extension.provider.OrderedSer
 public class DefaultKubernetesClientFactory implements AutoCloseable, KubernetesClientFactory {
 
     public static final String PORTFORWARD_FQDN_ENABLED_PROP = "portforward.fqdn.enabled";
-    public static final String IN_K8S = "IN_K8S";
-    public static final String NAMESPACE = "NAMESPACE";
-
+    private final static ConcurrentHashMap<CloudAndNamespace, KubernetesClient> clientsMap = new ConcurrentHashMap<>();
     private final Config config;
 
     public DefaultKubernetesClientFactory() {
@@ -37,66 +32,56 @@ public class DefaultKubernetesClientFactory implements AutoCloseable, Kubernetes
         this.config = config;
     }
 
-    private final static ConcurrentHashMap<CloudAndNamespace, KubernetesClient> clientsMap = new ConcurrentHashMap<>();
-
     public Collection<String> getKubernetesContexts() {
         return config.getContexts().stream().map(NamedContext::getName).toList();
     }
 
     public KubernetesClient getKubernetesClient(String context, String namespace) {
         return clientsMap.computeIfAbsent(new CloudAndNamespace(context, namespace), cloudAndNamespace -> {
-            ConfigBuilder configBuilder;
-
-            Config config1 = Config.autoConfigure(null);
-            config1.setNamespace(System.getenv(NAMESPACE));
-            KubernetesClientBuilder kubernetesClientBuilder = new KubernetesClientBuilder().withConfig(config1);
-            if (!"true".equalsIgnoreCase(System.getenv(IN_K8S))) {
-                String cloud = cloudAndNamespace.getCloud();
-                NamedContext namedContext = config.getContexts().stream()
-                        .filter(c -> Objects.equals(c.getName(), cloud)).findFirst()
-                        .orElseThrow(() -> new IllegalArgumentException(String.format("Unknown context: '%s'. Known contexts:\n[%s]",
-                                cloud, String.join(",\n", getKubernetesContexts()))));
-                Config config;
-                if (Objects.equals(cloud, this.config.getCurrentContext().getName())) {
-                    config = this.config;
-                } else {
-                    config = Config.autoConfigure(namedContext.getName());
-                }
-                configBuilder = new ConfigBuilder(config).withNamespace(cloudAndNamespace.getNamespace());
-
-                List<Fabric8ConfigBuilderAdapter> fabric8ConfigBuilderAdapters =
-                        OrderedServiceLoader.loadAll(Fabric8ConfigBuilderAdapter.class, ASC);
-                if (fabric8ConfigBuilderAdapters.isEmpty()) {
-                    throw new IllegalStateException("No Fabric8ConfigBuilderAdapter found");
-                }
-                for (Fabric8ConfigBuilderAdapter adapter : fabric8ConfigBuilderAdapters) {
-                    configBuilder = adapter.adapt(configBuilder);
-                }
-                config = configBuilder.build();
-
-                List<Fabric8KubernetesClientBuilderAdapter> fabric8KubernetesClientBuilderAdapters =
-                        OrderedServiceLoader.loadAll(Fabric8KubernetesClientBuilderAdapter.class, ASC);
-                if (fabric8KubernetesClientBuilderAdapters.isEmpty()) {
-                    throw new IllegalStateException("No Fabric8KubernetesClientBuilderAdapter found");
-                }
-                kubernetesClientBuilder = new KubernetesClientBuilder().withConfig(config);
-                for (Fabric8KubernetesClientBuilderAdapter adapter : fabric8KubernetesClientBuilderAdapters) {
-                    kubernetesClientBuilder = adapter.adapt(kubernetesClientBuilder);
-                }
+            String cloud = cloudAndNamespace.getCloud();
+            NamedContext namedContext = config.getContexts().stream()
+                    .filter(c -> Objects.equals(c.getName(), cloud)).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException(String.format("Unknown context: '%s'. Known contexts:\n[%s]",
+                            cloud, String.join(",\n", getKubernetesContexts()))));
+            Config config;
+            if (Objects.equals(cloud, this.config.getCurrentContext().getName())) {
+                config = this.config;
+            } else {
+                config = Config.autoConfigure(namedContext.getName());
             }
+            ConfigBuilder configBuilder = new ConfigBuilder(config).withNamespace(cloudAndNamespace.getNamespace());
 
+            List<Fabric8ConfigBuilderAdapter> fabric8ConfigBuilderAdapters =
+                    OrderedServiceLoader.loadAll(Fabric8ConfigBuilderAdapter.class, ASC);
+            if (fabric8ConfigBuilderAdapters.isEmpty()) {
+                throw new IllegalStateException("No Fabric8ConfigBuilderAdapter found");
+            }
+            for (Fabric8ConfigBuilderAdapter adapter : fabric8ConfigBuilderAdapters) {
+                configBuilder = adapter.adapt(configBuilder);
+            }
+            config = configBuilder.build();
+
+            List<Fabric8KubernetesClientBuilderAdapter> fabric8KubernetesClientBuilderAdapters =
+                    OrderedServiceLoader.loadAll(Fabric8KubernetesClientBuilderAdapter.class, ASC);
+            if (fabric8KubernetesClientBuilderAdapters.isEmpty()) {
+                throw new IllegalStateException("No Fabric8KubernetesClientBuilderAdapter found");
+            }
+            KubernetesClientBuilder kubernetesClientBuilder = new KubernetesClientBuilder().withConfig(config);
+            for (Fabric8KubernetesClientBuilderAdapter adapter : fabric8KubernetesClientBuilderAdapters) {
+                kubernetesClientBuilder = adapter.adapt(kubernetesClientBuilder);
+            }
             return kubernetesClientBuilder.build();
         });
     }
 
     @Override
     public String getCurrentContext() {
-         return config.getCurrentContext()!=null ? config.getCurrentContext().getName() : "this";
+        return config.getCurrentContext().getName();
     }
 
     @Override
     public String getNamespace() {
-        return config.getNamespace()!=null ? config.getNamespace() : NAMESPACE;
+        return config.getNamespace();
     }
 
     @Override
