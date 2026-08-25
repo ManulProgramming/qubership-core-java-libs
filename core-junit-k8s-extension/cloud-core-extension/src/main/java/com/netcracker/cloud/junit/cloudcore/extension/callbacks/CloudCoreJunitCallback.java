@@ -109,11 +109,14 @@ public class CloudCoreJunitCallback implements BeforeAllCallback, AfterAllCallba
             } else if (!v.prop().isBlank()) {
                 String resolved = System.getProperty(v.prop());
                 if (resolved == null) {
-                    if (defaultValue.length > 0 && defaultValue[0] != null) {
-                        return defaultValue[0];
+                    String resolvedEnv = System.getenv(v.prop());
+                    if (resolvedEnv == null) {
+                        if (defaultValue.length > 0 && defaultValue[0] != null) {
+                            return defaultValue[0];
+                        }
+                        throw new IllegalArgumentException(String.format("@%s annotation's at field '%s' in class '%s' is invalid - prop: '%s' not found",
+                                annClass.getSimpleName(), field.getName(), testInstance.getClass().getName(), v.prop()));
                     }
-                    throw new IllegalArgumentException(String.format("@%s annotation's at field '%s' in class '%s' is invalid - prop: '%s' not found",
-                            annClass.getSimpleName(), field.getName(), testInstance.getClass().getName(), v.prop()));
                 }
                 return resolved;
             } else {
@@ -132,8 +135,11 @@ public class CloudCoreJunitCallback implements BeforeAllCallback, AfterAllCallba
             } else if (!v.prop().isBlank()) {
                 String resolved = System.getProperty(v.prop());
                 if (resolved == null) {
-                    throw new IllegalArgumentException(String.format("@%s annotation's at field '%s' in class '%s' is invalid - prop: '%s' not found",
-                            annClass.getSimpleName(), field.getName(), testInstance.getClass().getName(), v.prop()));
+                    String resolvedEnv = System.getenv(v.prop());
+                    if (resolvedEnv == null) {
+                        throw new IllegalArgumentException(String.format("@%s annotation's at field '%s' in class '%s' is invalid - prop: '%s' not found",
+                                annClass.getSimpleName(), field.getName(), testInstance.getClass().getName(), v.prop()));
+                    }
                 }
                 return Integer.valueOf(resolved);
             } else {
