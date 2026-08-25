@@ -117,6 +117,7 @@ public class CloudCoreJunitCallback implements BeforeAllCallback, AfterAllCallba
                         throw new IllegalArgumentException(String.format("@%s annotation's at field '%s' in class '%s' is invalid - prop: '%s' not found",
                                 annClass.getSimpleName(), field.getName(), testInstance.getClass().getName(), v.prop()));
                     }
+                    return resolvedEnv;
                 }
                 return resolved;
             } else {
@@ -140,6 +141,7 @@ public class CloudCoreJunitCallback implements BeforeAllCallback, AfterAllCallba
                         throw new IllegalArgumentException(String.format("@%s annotation's at field '%s' in class '%s' is invalid - prop: '%s' not found",
                                 annClass.getSimpleName(), field.getName(), testInstance.getClass().getName(), v.prop()));
                     }
+                    return Integer.valueOf(resolvedEnv);
                 }
                 return Integer.valueOf(resolved);
             } else {
